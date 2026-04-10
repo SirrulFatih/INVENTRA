@@ -1,26 +1,92 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eef3f6;
+  --foreground: #0f1728;
+  --card: #ffffff;
+  --muted: #516173;
+  --line: #d4dee7;
+  --primary: #0b6a75;
+  --primary-strong: #064e57;
+  --accent: #f59f0b;
+  --danger: #dc2626;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-outfit);
+  --font-display: var(--font-space-grotesk);
 }
 
 body {
+  margin: 0;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(11, 106, 117, 0.08), transparent 35%),
+    radial-gradient(circle at 90% 90%, rgba(245, 159, 11, 0.1), transparent 30%),
+    var(--background);
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-outfit), "Trebuchet MS", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.card-surface {
+  background: linear-gradient(160deg, #ffffff 0%, #f9fcff 100%);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 16px 30px rgba(15, 23, 40, 0.06);
+}
+
+.table-shell {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.table-shell table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-shell th,
+.table-shell td {
+  border-bottom: 1px solid #e6edf3;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+}
+
+.table-shell th {
+  background: #f8fbfd;
+  color: #324154;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.badge-in {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-out {
+  background: #fee2e2;
+  color: #991b1b;
 }
