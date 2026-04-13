@@ -13,14 +13,22 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
-const sidebarItems = [
+interface SidebarItem {
+  href: string;
+  label: string;
+  code: string;
+  adminOnly: boolean;
+  requiredPermission?: string;
+}
+
+const sidebarItems: SidebarItem[] = [
   { href: "/dashboard", label: "Dashboard", code: "DB", adminOnly: false },
   { href: "/items", label: "Items", code: "IT", adminOnly: false },
   { href: "/transactions", label: "Transactions", code: "TX", adminOnly: false },
   { href: "/roles", label: "Roles", code: "RL", adminOnly: false, requiredPermission: "manage_users" },
   { href: "/users", label: "Users", code: "US", adminOnly: true },
   { href: "/audit-logs", label: "Audit Logs", code: "AL", adminOnly: true }
-] as const;
+];
 
 export function Sidebar({ pathname, role, permissions, mobileOpen, onCloseMobile }: SidebarProps) {
   const grantedPermissions = new Set(permissions ?? []);
