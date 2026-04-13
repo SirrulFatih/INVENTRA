@@ -2,24 +2,130 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
-import { LoadingState } from "@/components/common/loading-state";
+import { auditLogsApi } from "@/lib/api/audit-logs-api";
 import { itemsApi } from "@/lib/api/items-api";
 import { transactionsApi } from "@/lib/api/transactions-api";
 import { formatDateTime } from "@/lib/utils/format";
-import type { InventoryTransaction } from "@/types/entities";
+import type { AuditLog } from "@/types/entities";
 
 interface DashboardState {
   totalItems: number;
   totalTransactions: number;
-  recentTransactions: InventoryTransaction[];
+  recentActivity: AuditLog[];
 }
 
 const INITIAL_STATE: DashboardState = {
   totalItems: 0,
   totalTransactions: 0,
-  recentTransactions: []
+  recentActivity: []
+};
+
+const ACTIVITY_ICON_MAP: Record<string, string> = {
+  create: "🟢",
+  update: "🟡",
+  delete: "🔴",
+  approve: "✅",
+  reject: "❌",
+  login: "🔐"
+};
+
+const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+const getActivityKey = (log: AuditLog) => {
+  const action = String(log.action || "").toLowerCase();
+  const description = String(log.description || "").toLowerCase();
+
+  if (description.includes("reject")) {
+    return "reject";
+  }
+
+  if (description.includes("approve")) {
+    return "approve";
+  }
+
+  if (action.includes("delete")) {
+    return "delete";
+  }
+
+  if (action.includes("create")) {
+    return "create";
+  }
+
+  if (action.includes("update")) {
+    return "update";
+  }
+
+  if (action.includes("reject")) {
+    return "reject";
+  }
+
+  if (action.includes("approve")) {
+    return "approve";
+  }
+
+  if (action.includes("login")) {
+    return "login";
+  }
+
+  return "update";
+};
+
+const getActivityIcon = (log: AuditLog) => {
+  const activityKey = getActivityKey(log);
+  return ACTIVITY_ICON_MAP[activityKey] ?? "🟡";
+};
+
+function formatActivity(log: AuditLog) {
+  const actorName = log.user?.name ?? `User ${log.userId}`;
+  const activityKey = getActivityKey(log);
+  const entityName = String(log.tableName || "record").toLowerCase();
+
+  if (activityKey === "login") {
+    return `${actorName} logged in`;
+  }
+
+  const actionWord =
+    activityKey === "create"
+      ? "created"
+      : activityKey === "delete"
+        ? "deleted"
+        : activityKey === "approve"
+          ? "approved"
+          : activityKey === "reject"
+            ? "rejected"
+            : "updated";
+
+  return `${actorName} ${actionWord} ${entityName} #${log.recordId}`;
+}
+
+const formatRelativeTime = (dateValue: string) => {
+  const parsedDate = new Date(dateValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "-";
+  }
+
+  const diffInSeconds = Math.floor((parsedDate.getTime() - Date.now()) / 1000);
+  const absSeconds = Math.abs(diffInSeconds);
+
+  if (absSeconds < 60) {
+    return RELATIVE_TIME_FORMATTER.format(diffInSeconds, "second");
+  }
+
+  if (absSeconds < 3600) {
+    return RELATIVE_TIME_FORMATTER.format(Math.floor(diffInSeconds / 60), "minute");
+  }
+
+  if (absSeconds < 86400) {
+    return RELATIVE_TIME_FORMATTER.format(Math.floor(diffInSeconds / 3600), "hour");
+  }
+
+  if (absSeconds < 604800) {
+    return RELATIVE_TIME_FORMATTER.format(Math.floor(diffInSeconds / 86400), "day");
+  }
+
+  return formatDateTime(dateValue);
 };
 
 export default function DashboardPage() {
@@ -32,15 +138,16 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const [itemsSummary, transactionsSummary] = await Promise.all([
+      const [itemsSummary, transactionsSummary, activitySummary] = await Promise.all([
         itemsApi.getItems({ page: 1, limit: 1 }),
-        transactionsApi.getTransactions({ page: 1, limit: 5, sortBy: "createdAt", order: "desc" })
+        transactionsApi.getTransactions({ page: 1, limit: 1, sortBy: "createdAt", order: "desc" }),
+        auditLogsApi.getAuditLogs({ page: 1, limit: 5 })
       ]);
 
       setState({
         totalItems: itemsSummary.total,
         totalTransactions: transactionsSummary.total,
-        recentTransactions: transactionsSummary.data
+        recentActivity: activitySummary.data
       });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Gagal memuat dashboard.");
@@ -52,10 +159,6 @@ export default function DashboardPage() {
   useEffect(() => {
     void fetchDashboard();
   }, [fetchDashboard]);
-
-  if (loading) {
-    return <LoadingState label="Memuat ringkasan dashboard..." />;
-  }
 
   if (error) {
     return <ErrorState message={error} onRetry={fetchDashboard} />;
@@ -86,48 +189,31 @@ export default function DashboardPage() {
       </div>
 
       <div className="card-surface p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-slate-800">Recent Transactions</h2>
-          <button
-            type="button"
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-            onClick={() => void fetchDashboard()}
-          >
-            Refresh
-          </button>
-        </div>
+        <h2 className="font-display mb-4 text-lg font-semibold text-slate-800">Recent Activity</h2>
 
-        {state.recentTransactions.length === 0 ? (
-          <EmptyState title="Belum ada transaksi" description="Aktivitas transaksi akan muncul setelah tim mulai membuat pergerakan stok." />
-        ) : (
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Item</th>
-                  <th>Type</th>
-                  <th>Quantity</th>
-                  <th>User</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.recentTransactions.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td>#{transaction.id}</td>
-                    <td>{transaction.item?.name ?? `Item ${transaction.itemId}`}</td>
-                    <td>
-                      <span className={`badge ${transaction.type === "IN" ? "badge-in" : "badge-out"}`}>{transaction.type}</span>
-                    </td>
-                    <td>{transaction.quantity}</td>
-                    <td>{transaction.user?.name ?? `User ${transaction.userId}`}</td>
-                    <td>{formatDateTime(transaction.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {loading ? (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Loading activity...</p>
+        ) : state.recentActivity.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5">
+            <p className="text-sm font-semibold text-slate-700">No activity yet 📭</p>
+            <p className="mt-1 text-sm text-slate-500">
+              System activity will appear here once users start using the system.
+            </p>
           </div>
+        ) : (
+          <ul className="space-y-3">
+            {state.recentActivity.map((log) => (
+              <li key={log.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <span className="pt-0.5 text-base leading-none">{getActivityIcon(log)}</span>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{formatActivity(log)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatRelativeTime(log.createdAt)}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
