@@ -8,6 +8,7 @@ import type { UserRole } from "@/types/entities";
 interface SidebarProps {
   pathname: string;
   role: UserRole;
+  permissions?: string[];
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
@@ -16,12 +17,19 @@ const sidebarItems = [
   { href: "/dashboard", label: "Dashboard", code: "DB", adminOnly: false },
   { href: "/items", label: "Items", code: "IT", adminOnly: false },
   { href: "/transactions", label: "Transactions", code: "TX", adminOnly: false },
+  { href: "/roles", label: "Roles", code: "RL", adminOnly: false, requiredPermission: "manage_users" },
   { href: "/users", label: "Users", code: "US", adminOnly: true },
   { href: "/audit-logs", label: "Audit Logs", code: "AL", adminOnly: true }
 ] as const;
 
-export function Sidebar({ pathname, role, mobileOpen, onCloseMobile }: SidebarProps) {
-  const visibleItems = sidebarItems.filter((item) => !item.adminOnly || role === "admin");
+export function Sidebar({ pathname, role, permissions, mobileOpen, onCloseMobile }: SidebarProps) {
+  const grantedPermissions = new Set(permissions ?? []);
+  const visibleItems = sidebarItems.filter((item) => {
+    const passesRoleCheck = !item.adminOnly || role === "admin";
+    const passesPermissionCheck = !item.requiredPermission || grantedPermissions.has(item.requiredPermission) || role === "admin";
+
+    return passesRoleCheck && passesPermissionCheck;
+  });
 
   return (
     <>

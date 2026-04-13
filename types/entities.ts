@@ -1,10 +1,22 @@
-export type UserRole = "admin" | "karyawan";
+export type UserRole = string;
+
+export interface Permission {
+  id: number;
+  name: string;
+}
+
+export interface RoleWithPermissions {
+  id: number;
+  name: string;
+  permissions: Permission[];
+}
 
 export interface User {
   id: number;
   name: string;
   email: string;
   role: UserRole;
+  permissions?: string[];
   createdAt: string;
 }
 
@@ -19,6 +31,7 @@ export interface Item {
 }
 
 export type TransactionType = "IN" | "OUT";
+export type TransactionStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface InventoryTransaction {
   id: number;
@@ -26,6 +39,9 @@ export interface InventoryTransaction {
   type: TransactionType;
   quantity: number;
   userId: number;
+  status: TransactionStatus;
+  approvedBy: string | null;
+  approvedAt: string | null;
   createdAt: string;
   item?: {
     id: number;

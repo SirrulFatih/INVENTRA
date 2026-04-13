@@ -18,30 +18,21 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user] = useState<User | null>(() => getAuthUser());
+  const [token] = useState<string | null>(() => getAuthToken());
 
   useEffect(() => {
-    setUser(getAuthUser());
-    setToken(getAuthToken());
-    setIsHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (isHydrated && (!token || !user)) {
+    if (!token || !user) {
       router.replace("/login");
     }
-  }, [isHydrated, router, token, user]);
+  }, [router, token, user]);
 
   const handleLogout = () => {
     clearAuthSession();
-    setToken(null);
-    setUser(null);
     router.replace("/login");
   };
 
-  if (!isHydrated || !token || !user) {
+  if (!token || !user) {
     return (
       <div className="mx-auto w-full max-w-5xl p-8">
         <LoadingState label="Preparing your workspace..." />
@@ -54,6 +45,7 @@ export function AppShell({ children }: AppShellProps) {
       <Sidebar
         pathname={pathname}
         role={user.role}
+        permissions={user.permissions}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />

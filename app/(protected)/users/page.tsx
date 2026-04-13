@@ -7,16 +7,17 @@ import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { UserFormModal, type UserFormValues } from "@/components/users/user-form-modal";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { isAdminUser } from "@/lib/auth/storage";
+import { rolesApi } from "@/lib/api/roles-api";
 import { usersApi } from "@/lib/api/users-api";
 import { formatDateTime } from "@/lib/utils/format";
-import type { User } from "@/types/entities";
+import type { RoleWithPermissions, User } from "@/types/entities";
 
 export default function UsersPage() {
   const user = useAuthUser();
-  const isAdmin = isAdminUser(user);
+  const canManageUsers = Boolean(user?.permissions?.includes("manage_users") || user?.role === "admin");
 
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function UsersPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const loadUsers = useCallback(async () => {
-    if (!isAdmin) {
+    if (!canManageUsers) {
       return;
     }
 
@@ -34,14 +35,15 @@ export default function UsersPage() {
     setError(null);
 
     try {
-      const result = await usersApi.getUsers();
-      setUsers(result);
+      const [usersResult, rolesResult] = await Promise.all([usersApi.getUsers(), rolesApi.getRoles()]);
+      setUsers(usersResult);
+      setRoles(rolesResult);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Gagal memuat data user.");
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [canManageUsers]);
 
   useEffect(() => {
     if (!user) {
@@ -72,26 +74,27 @@ export default function UsersPage() {
 
     try {
       if (editingUser) {
+        if (!values.roleId) {
+          throw new Error("Role wajib dipilih.");
+        }
+
         await usersApi.updateUser(editingUser.id, {
           name: values.name,
-          role: values.role
+          roleId: values.roleId
         });
 
         setNotice("User berhasil diperbarui.");
       } else {
-        const createdUser = await usersApi.createUser({
+        if (!values.roleId) {
+          throw new Error("Role wajib dipilih.");
+        }
+
+        await usersApi.createUser({
           name: values.name,
           email: values.email,
           password: values.password,
-          role: values.role
+          roleId: values.roleId
         });
-
-        if (createdUser.user.role !== values.role) {
-          await usersApi.updateUser(createdUser.user.id, {
-            name: values.name,
-            role: values.role
-          });
-        }
 
         setNotice("User baru berhasil dibuat.");
       }
@@ -125,8 +128,8 @@ export default function UsersPage() {
     }
   };
 
-  if (user && !isAdmin) {
-    return <ErrorState message="Hanya admin yang dapat mengakses halaman user management." />;
+  if (user && !canManageUsers) {
+    return <ErrorState message="Anda tidak memiliki permission manage_users untuk mengakses halaman user management." />;
   }
 
   return (
@@ -142,6 +145,7 @@ export default function UsersPage() {
           <button
             type="button"
             onClick={openCreateModal}
+            disabled={loading || roles.length === 0}
             className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-strong)]"
           >
             + Add User
@@ -182,7 +186,7 @@ export default function UsersPage() {
                       </td>
                       <td>{formatDateTime(listedUser.createdAt)}</td>
                       <td>
-                        {isAdmin ? (
+                        {canManageUsers ? (
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -213,10 +217,11 @@ export default function UsersPage() {
       ) : null}
 
       <UserFormModal
-        key={editingUser ? `edit-${editingUser.id}-${modalOpen}` : `create-${modalOpen}`}
+        key={editingUser ? `edit-${editingUser.id}-${modalOpen}` : `create-${modalOpen}-${roles.length}`}
         open={modalOpen}
         mode={editingUser ? "edit" : "create"}
         title={modalTitle}
+        roles={roles}
         submitting={submitting}
         onClose={() => setModalOpen(false)}
         initialValues={
@@ -225,9 +230,14 @@ export default function UsersPage() {
                 name: editingUser.name,
                 email: editingUser.email,
                 password: "",
-                role: editingUser.role
+                roleId: roles.find((role) => role.name === editingUser.role)?.id ?? null
               }
-            : undefined
+            : {
+                name: "",
+                email: "",
+                password: "",
+                roleId: roles[0]?.id ?? null
+              }
         }
         onSubmit={handleSubmitUser}
       />

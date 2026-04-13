@@ -1,22 +1,17 @@
 import { apiClient } from "@/lib/api/client";
 import type { ApiResponse } from "@/types/api";
-import type { User, UserRole } from "@/types/entities";
+import type { User } from "@/types/entities";
 
-interface RegisterUserPayload {
+interface CreateUserPayload {
   name: string;
   email: string;
   password: string;
-  role: UserRole;
-}
-
-interface RegisterUserResponse {
-  user: User;
-  token: string;
+  roleId: number;
 }
 
 interface UpdateUserPayload {
   name: string;
-  role: UserRole;
+  roleId: number;
 }
 
 export const usersApi = {
@@ -25,8 +20,8 @@ export const usersApi = {
     return response.data.data;
   },
 
-  async createUser(payload: RegisterUserPayload) {
-    const response = await apiClient.post<ApiResponse<RegisterUserResponse>>("/users/register", payload);
+  async createUser(payload: CreateUserPayload) {
+    const response = await apiClient.post<ApiResponse<User>>("/users", payload);
     return response.data.data;
   },
 

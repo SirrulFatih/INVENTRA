@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import type { UserRole } from "@/types/entities";
+import type { RoleWithPermissions } from "@/types/entities";
 
 type UserFormMode = "create" | "edit";
 
@@ -10,13 +10,14 @@ export interface UserFormValues {
   name: string;
   email: string;
   password: string;
-  role: UserRole;
+  roleId: number | null;
 }
 
 interface UserFormModalProps {
   open: boolean;
   mode: UserFormMode;
   title: string;
+  roles: RoleWithPermissions[];
   submitting: boolean;
   initialValues?: UserFormValues;
   onClose: () => void;
@@ -27,7 +28,7 @@ const DEFAULT_VALUES: UserFormValues = {
   name: "",
   email: "",
   password: "",
-  role: "karyawan"
+  roleId: null
 };
 
 const isValidEmail = (value: string) => {
@@ -38,22 +39,14 @@ export function UserFormModal({
   open,
   mode,
   title,
+  roles,
   submitting,
   initialValues,
   onClose,
   onSubmit
 }: UserFormModalProps) {
-  const [values, setValues] = useState<UserFormValues>(DEFAULT_VALUES);
+  const [values, setValues] = useState<UserFormValues>(() => initialValues ?? DEFAULT_VALUES);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setValues(initialValues ?? DEFAULT_VALUES);
-    setFormError(null);
-  }, [initialValues, open]);
 
   if (!open) {
     return null;
@@ -81,11 +74,16 @@ export function UserFormModal({
       return;
     }
 
+    if (!values.roleId) {
+      setFormError("Role wajib dipilih.");
+      return;
+    }
+
     await onSubmit({
       name: normalizedName,
       email: normalizedEmail,
       password: values.password,
-      role: values.role
+      roleId: values.roleId
     });
   };
 
@@ -139,12 +137,20 @@ export function UserFormModal({
           <label className="block text-sm font-medium text-slate-700">
             Role
             <select
-              value={values.role}
-              onChange={(event) => setValues((prev) => ({ ...prev, role: event.target.value as UserRole }))}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)]"
+              value={values.roleId === null ? "" : String(values.roleId)}
+              onChange={(event) => {
+                const selectedRoleId = event.target.value ? Number(event.target.value) : null;
+                setValues((prev) => ({ ...prev, roleId: selectedRoleId }));
+              }}
+              disabled={roles.length === 0}
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] disabled:bg-slate-100 disabled:text-slate-500"
             >
-              <option value="admin">admin</option>
-              <option value="karyawan">karyawan</option>
+              <option value="">Pilih role</option>
+              {roles.map((role) => (
+                <option key={role.id} value={String(role.id)}>
+                  {role.name}
+                </option>
+              ))}
             </select>
           </label>
 
