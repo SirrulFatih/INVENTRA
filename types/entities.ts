@@ -62,6 +62,7 @@ export interface AuditLog {
   id: number;
   userId: number;
   action: AuditAction;
+  entity?: string;
   tableName: AuditTableName;
   recordId: number;
   description: string | null;

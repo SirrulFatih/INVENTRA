@@ -1,38 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { clearAuthSession, getAuthToken, getAuthUser } from "@/lib/auth/storage";
+import { clearAuthSession, getAuthSession } from "@/lib/auth/storage";
 import { LoadingState } from "@/components/common/loading-state";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import type { User } from "@/types/entities";
 
 interface AppShellProps {
   children: React.ReactNode;
 }
+
+const subscribeToHydration = () => {
+  return () => {};
+};
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [user] = useState<User | null>(() => getAuthUser());
-  const [token] = useState<string | null>(() => getAuthToken());
+  const isHydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
+  const session = isHydrated ? getAuthSession() : null;
+  const user = session?.user ?? null;
+  const token = session?.token ?? null;
 
   useEffect(() => {
-    if (!token || !user) {
+    if (isHydrated && (!token || !user)) {
       router.replace("/login");
     }
-  }, [router, token, user]);
+  }, [isHydrated, router, token, user]);
 
   const handleLogout = () => {
     clearAuthSession();
     router.replace("/login");
   };
 
-  if (!token || !user) {
+  if (!isHydrated || !token || !user) {
     return (
       <div className="mx-auto w-full max-w-5xl p-8">
         <LoadingState label="Preparing your workspace..." />
