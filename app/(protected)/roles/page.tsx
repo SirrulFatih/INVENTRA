@@ -5,14 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
-import { RoleFormModal, type RoleFormValues } from "@/components/roles/role-form-modal";
+import { RoleFormModal, type RoleFormValues } from "./_components/role-form-modal";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { rolesApi } from "@/lib/api/roles-api";
 import type { Permission, RoleWithPermissions } from "@/types/entities";
 
 export default function RolesPage() {
   const user = useAuthUser();
-  const canManageUsers = Boolean(user?.permissions?.includes("manage_users") || user?.role === "admin");
+  const canManageRoles = Boolean(user?.permissions?.includes("manage_roles"));
 
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -26,7 +26,7 @@ export default function RolesPage() {
   const [deletingRoleId, setDeletingRoleId] = useState<number | null>(null);
 
   const loadRoleData = useCallback(async () => {
-    if (!canManageUsers) {
+    if (!canManageRoles) {
       return;
     }
 
@@ -42,7 +42,7 @@ export default function RolesPage() {
     } finally {
       setLoading(false);
     }
-  }, [canManageUsers]);
+  }, [canManageRoles]);
 
   useEffect(() => {
     if (!user) {
@@ -112,8 +112,8 @@ export default function RolesPage() {
     }
   };
 
-  if (user && !canManageUsers) {
-    return <ErrorState message="Anda tidak memiliki permission manage_users untuk mengakses halaman ini." />;
+  if (user && !canManageRoles) {
+    return <ErrorState message="Anda tidak memiliki permission manage_roles untuk mengakses halaman ini." />;
   }
 
   return (

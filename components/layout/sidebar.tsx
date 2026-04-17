@@ -17,26 +17,22 @@ interface SidebarItem {
   href: string;
   label: string;
   code: string;
-  adminOnly: boolean;
   requiredPermission?: string;
 }
 
 const sidebarItems: SidebarItem[] = [
-  { href: "/dashboard", label: "Dashboard", code: "DB", adminOnly: false },
-  { href: "/items", label: "Items", code: "IT", adminOnly: false },
-  { href: "/transactions", label: "Transactions", code: "TX", adminOnly: false },
-  { href: "/roles", label: "Roles", code: "RL", adminOnly: false, requiredPermission: "manage_users" },
-  { href: "/users", label: "Users", code: "US", adminOnly: true },
-  { href: "/audit-logs", label: "Audit Logs", code: "AL", adminOnly: true }
+  { href: "/dashboard", label: "Dashboard", code: "DB", requiredPermission: "view_dashboard" },
+  { href: "/items", label: "Items", code: "IT", requiredPermission: "read_items" },
+  { href: "/transactions", label: "Transactions", code: "TX", requiredPermission: "read_transactions" },
+  { href: "/roles", label: "Roles", code: "RL", requiredPermission: "manage_roles" },
+  { href: "/users", label: "Users", code: "US", requiredPermission: "manage_users" },
+  { href: "/audit-logs", label: "Audit Logs", code: "AL", requiredPermission: "read_audit_logs" }
 ];
 
 export function Sidebar({ pathname, role, permissions, mobileOpen, onCloseMobile }: SidebarProps) {
   const grantedPermissions = new Set(permissions ?? []);
   const visibleItems = sidebarItems.filter((item) => {
-    const passesRoleCheck = !item.adminOnly || role === "admin";
-    const passesPermissionCheck = !item.requiredPermission || grantedPermissions.has(item.requiredPermission) || role === "admin";
-
-    return passesRoleCheck && passesPermissionCheck;
+    return !item.requiredPermission || grantedPermissions.has(item.requiredPermission);
   });
 
   return (

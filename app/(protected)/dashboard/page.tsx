@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import { ErrorState } from "@/components/common/error-state";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import { auditLogsApi } from "@/lib/api/audit-logs-api";
 import { itemsApi } from "@/lib/api/items-api";
 import { transactionsApi } from "@/lib/api/transactions-api";
@@ -168,6 +169,13 @@ const formatRelativeTime = (dateValue: string) => {
 };
 
 export default function DashboardPage() {
+  const user = useAuthUser();
+  const canViewItems = Boolean(user?.permissions?.includes("read_items") || user?.permissions?.includes("manage_items"));
+  const canViewTransactions = Boolean(
+    user?.permissions?.includes("read_transactions") || user?.permissions?.includes("manage_transactions")
+  );
+  const canViewAuditLogs = Boolean(user?.permissions?.includes("read_audit_logs"));
+
   const [state, setState] = useState<DashboardState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -199,11 +207,24 @@ export default function DashboardPage() {
     setError(null);
 
     try {
+      const itemSummaryPromise = canViewItems
+        ? itemsApi.getItems({ page: 1, limit: 100 })
+        : Promise.resolve({ data: [], total: 0, page: 1, totalPages: 0 });
+      const transactionsSummaryPromise = canViewTransactions
+        ? transactionsApi.getTransactions({ page: 1, limit: 20, sortBy: "createdAt", order: "desc" })
+        : Promise.resolve({ data: [], total: 0, page: 1, totalPages: 0 });
+      const activitySummaryPromise = canViewAuditLogs
+        ? auditLogsApi.getAuditLogs({ page: 1, limit: 10 })
+        : Promise.resolve({ data: [], total: 0, page: 1, totalPages: 0 });
+      const analyticsSummaryPromise = canViewTransactions
+        ? transactionsApi.getTransactions({ page: 1, limit: 100, sortBy: "createdAt", order: "desc" })
+        : Promise.resolve({ data: [], total: 0, page: 1, totalPages: 0 });
+
       const [itemsSummary, transactionsSummary, activitySummary, analyticsSummary] = await Promise.all([
-        itemsApi.getItems({ page: 1, limit: 100 }),
-        transactionsApi.getTransactions({ page: 1, limit: 20, sortBy: "createdAt", order: "desc" }),
-        auditLogsApi.getAuditLogs({ page: 1, limit: 10 }),
-        transactionsApi.getTransactions({ page: 1, limit: 100, sortBy: "createdAt", order: "desc" })
+        itemSummaryPromise,
+        transactionsSummaryPromise,
+        activitySummaryPromise,
+        analyticsSummaryPromise
       ]);
 
       setState({
@@ -220,7 +241,7 @@ export default function DashboardPage() {
       setLoading(false);
       setAnalyticsLoading(false);
     }
-  }, []);
+  }, [canViewAuditLogs, canViewItems, canViewTransactions]);
 
   useEffect(() => {
     void fetchDashboard();
@@ -442,6 +463,10 @@ export default function DashboardPage() {
 
         {loading ? (
           <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Loading activity...</p>
+        ) : state.recentActivity.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5">
+            <p className="text-sm font-semibold text-slate-700">No data available</p>
+          </div>
         ) : filteredLogs.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5">
             <p className="text-sm font-semibold text-slate-700">No matching activity found 🔍</p>

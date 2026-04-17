@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
-import { UserFormModal, type UserFormValues } from "@/components/users/user-form-modal";
+import { UserFormModal, type UserFormValues } from "./_components/user-form-modal";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { rolesApi } from "@/lib/api/roles-api";
 import { usersApi } from "@/lib/api/users-api";
@@ -14,7 +14,7 @@ import type { RoleWithPermissions, User } from "@/types/entities";
 
 export default function UsersPage() {
   const user = useAuthUser();
-  const canManageUsers = Boolean(user?.permissions?.includes("manage_users") || user?.role === "admin");
+  const canManageUsers = Boolean(user?.permissions?.includes("manage_users"));
 
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);

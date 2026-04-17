@@ -7,13 +7,13 @@ import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Pagination } from "@/components/common/pagination";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { isAdminUser } from "@/lib/auth/storage";
 import { auditLogsApi } from "@/lib/api/audit-logs-api";
 import { formatDateTime } from "@/lib/utils/format";
 import type { AuditAction, AuditLog, AuditTableName } from "@/types/entities";
 
 export default function AuditLogsPage() {
   const user = useAuthUser();
+  const canReadAuditLogs = Boolean(user?.permissions?.includes("read_audit_logs"));
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [page, setPage] = useState(1);
@@ -26,7 +26,8 @@ export default function AuditLogsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadAuditLogs = useCallback(async () => {
-    if (!isAdminUser(user)) {
+    if (!canReadAuditLogs) {
+      setLoading(false);
       return;
     }
 
@@ -50,7 +51,7 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [actionFilter, page, tableFilter, user, userIdFilter]);
+  }, [actionFilter, canReadAuditLogs, page, tableFilter, userIdFilter]);
 
   useEffect(() => {
     if (!user) {
@@ -65,8 +66,8 @@ export default function AuditLogsPage() {
     setter(value);
   };
 
-  if (user && !isAdminUser(user)) {
-    return <ErrorState message="Hanya admin yang dapat mengakses halaman audit logs." />;
+  if (user && !canReadAuditLogs) {
+    return <ErrorState message="Anda tidak memiliki permission read_audit_logs untuk mengakses halaman audit logs." />;
   }
 
   return (

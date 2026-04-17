@@ -6,9 +6,8 @@ import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Pagination } from "@/components/common/pagination";
-import { ItemFormModal } from "@/components/items/item-form-modal";
+import { ItemFormModal } from "./_components/item-form-modal";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { isAdminUser } from "@/lib/auth/storage";
 import { itemsApi } from "@/lib/api/items-api";
 import { formatDateTime } from "@/lib/utils/format";
 import type { Item } from "@/types/entities";
@@ -21,6 +20,8 @@ interface ItemFormValues {
 
 export default function ItemsPage() {
   const user = useAuthUser();
+  const canReadItems = Boolean(user?.permissions?.includes("read_items") || user?.permissions?.includes("manage_items"));
+  const canManageItems = Boolean(user?.permissions?.includes("manage_items"));
 
   const [items, setItems] = useState<Item[]>([]);
   const [page, setPage] = useState(1);
@@ -36,9 +37,12 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const isAdmin = isAdminUser(user);
-
   const loadItems = useCallback(async () => {
+    if (!canReadItems) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -57,7 +61,7 @@ export default function ItemsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery]);
+  }, [canReadItems, page, searchQuery]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -129,6 +133,10 @@ export default function ItemsPage() {
     }
   };
 
+  if (user && !canReadItems) {
+    return <ErrorState message="Anda tidak memiliki permission read_items untuk mengakses halaman item." />;
+  }
+
   return (
     <div className="space-y-5">
       <div className="card-surface p-5">
@@ -139,13 +147,15 @@ export default function ItemsPage() {
             <p className="mt-1 text-sm text-slate-500">Kelola data item, stok, dan detail produk di gudang.</p>
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-strong)]"
-          >
-            + Create Item
-          </button>
+          {canManageItems ? (
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-strong)]"
+            >
+              + Create Item
+            </button>
+          ) : null}
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -190,15 +200,15 @@ export default function ItemsPage() {
                       <td>{item.description || "-"}</td>
                       <td>{formatDateTime(item.updatedAt)}</td>
                       <td>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                            onClick={() => openEditModal(item)}
-                          >
-                            Update
-                          </button>
-                          {isAdmin ? (
+                        {canManageItems ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                              onClick={() => openEditModal(item)}
+                            >
+                              Update
+                            </button>
                             <button
                               type="button"
                               className="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
@@ -206,8 +216,10 @@ export default function ItemsPage() {
                             >
                               Delete
                             </button>
-                          ) : null}
-                        </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -220,23 +232,25 @@ export default function ItemsPage() {
         )
       ) : null}
 
-      <ItemFormModal
-        key={editingItem ? `edit-${editingItem.id}-${modalOpen}` : `create-${modalOpen}`}
-        open={modalOpen}
-        title={modalTitle}
-        submitting={submitting}
-        onClose={() => setModalOpen(false)}
-        initialValues={
-          editingItem
-            ? {
-                name: editingItem.name,
-                stock: editingItem.stock,
-                description: editingItem.description ?? ""
-              }
-            : undefined
-        }
-        onSubmit={handleSubmitItem}
-      />
+      {canManageItems ? (
+        <ItemFormModal
+          key={editingItem ? `edit-${editingItem.id}-${modalOpen}` : `create-${modalOpen}`}
+          open={modalOpen}
+          title={modalTitle}
+          submitting={submitting}
+          onClose={() => setModalOpen(false)}
+          initialValues={
+            editingItem
+              ? {
+                  name: editingItem.name,
+                  stock: editingItem.stock,
+                  description: editingItem.description ?? ""
+                }
+              : undefined
+          }
+          onSubmit={handleSubmitItem}
+        />
+      ) : null}
     </div>
   );
 }

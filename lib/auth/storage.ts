@@ -57,7 +57,3 @@ export const clearAuthSession = () => {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   document.cookie = `${AUTH_COOKIE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
 };
-
-export const isAdminUser = (user: User | null) => {
-  return user?.role === "admin";
-};

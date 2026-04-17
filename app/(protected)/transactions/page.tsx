@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Pagination } from "@/components/common/pagination";
-import { TransactionForm } from "@/components/transactions/transaction-form";
+import { TransactionForm } from "./_components/transaction-form";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { itemsApi } from "@/lib/api/items-api";
 import { transactionsApi } from "@/lib/api/transactions-api";
@@ -36,6 +36,12 @@ const STATUS_LABELS: Record<TransactionStatus, string> = {
 
 export default function TransactionsPage() {
   const user = useAuthUser();
+  const canReadTransactions = Boolean(
+    user?.permissions?.includes("read_transactions") || user?.permissions?.includes("manage_transactions")
+  );
+  const canReadItems = Boolean(user?.permissions?.includes("read_items") || user?.permissions?.includes("manage_items"));
+  const canManageTransactions = Boolean(user?.permissions?.includes("manage_transactions"));
+  const canApproveTransactions = Boolean(user?.permissions?.includes("approve_transactions"));
 
   const [items, setItems] = useState<Item[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
@@ -58,11 +64,15 @@ export default function TransactionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const canApproveTransaction = Boolean(user?.permissions?.includes("approve_transaction"));
   const hasActiveFilters =
     typeFilter !== "" || statusFilter !== "" || itemFilter !== "" || sortBy !== "createdAt" || order !== "desc";
 
   const loadItems = useCallback(async () => {
+    if (!canReadItems) {
+      setLoadingItems(false);
+      return;
+    }
+
     setLoadingItems(true);
 
     try {
@@ -73,9 +83,14 @@ export default function TransactionsPage() {
     } finally {
       setLoadingItems(false);
     }
-  }, []);
+  }, [canReadItems]);
 
   const loadTransactions = useCallback(async () => {
+    if (!canReadTransactions) {
+      setLoadingList(false);
+      return;
+    }
+
     setLoadingList(true);
     setError(null);
 
@@ -98,7 +113,7 @@ export default function TransactionsPage() {
     } finally {
       setLoadingList(false);
     }
-  }, [itemFilter, order, page, sortBy, statusFilter, typeFilter]);
+  }, [canReadTransactions, itemFilter, order, page, sortBy, statusFilter, typeFilter]);
 
   useEffect(() => {
     void loadItems();
@@ -137,7 +152,7 @@ export default function TransactionsPage() {
     try {
       await transactionsApi.createTransaction(payload);
       setNotice("Transaksi berhasil dibuat.");
-      await Promise.all([loadTransactions(), loadItems()]);
+      await Promise.all([loadTransactions(), canReadItems ? loadItems() : Promise.resolve()]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Gagal membuat transaksi.");
     } finally {
@@ -174,7 +189,7 @@ export default function TransactionsPage() {
         setNotice(`Transaksi #${transactionId} berhasil di-reject.`);
       }
 
-      await Promise.all([loadTransactions(), loadItems()]);
+      await Promise.all([loadTransactions(), canReadItems ? loadItems() : Promise.resolve()]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Gagal memproses approval transaksi.");
     } finally {
@@ -201,6 +216,10 @@ export default function TransactionsPage() {
     setApprovalConfirmation(null);
   };
 
+  if (user && !canReadTransactions) {
+    return <ErrorState message="Anda tidak memiliki permission read_transactions untuk mengakses halaman transaksi." />;
+  }
+
   return (
     <div className="space-y-5">
       <div className="card-surface p-5">
@@ -209,10 +228,14 @@ export default function TransactionsPage() {
         <p className="mt-1 text-sm text-slate-500">Catat transaksi IN dan OUT untuk menjaga akurasi stok harian.</p>
       </div>
 
-      {loadingItems ? (
-        <LoadingState label="Memuat data item untuk transaksi..." />
+      {canManageTransactions ? (
+        loadingItems ? (
+          <LoadingState label="Memuat data item untuk transaksi..." />
+        ) : (
+          <TransactionForm items={items} submitting={creating} onSubmit={handleCreateTransaction} />
+        )
       ) : (
-        <TransactionForm items={items} submitting={creating} onSubmit={handleCreateTransaction} />
+        <div className="card-surface px-4 py-3 text-sm text-slate-600">Anda memiliki akses baca transaksi. Aksi perubahan data dinonaktifkan.</div>
       )}
 
       <div className="card-surface p-5">
@@ -353,7 +376,7 @@ export default function TransactionsPage() {
                       <td>{transaction.user?.name ?? `User ${transaction.userId}`}</td>
                       <td>{formatDateTime(transaction.createdAt)}</td>
                       <td>
-                        {transaction.status === "PENDING" && canApproveTransaction ? (
+                        {transaction.status === "PENDING" && canApproveTransactions ? (
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
