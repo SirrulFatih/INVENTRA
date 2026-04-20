@@ -24,6 +24,8 @@ export interface Item {
   id: number;
   name: string;
   stock: number;
+  reservedStock: number;
+  availableStock: number;
   description: string | null;
   createdBy: number;
   createdAt: string;
@@ -47,6 +49,8 @@ export interface InventoryTransaction {
     id: number;
     name: string;
     stock: number;
+    reservedStock: number;
+    availableStock: number;
   };
   user?: {
     id: number;

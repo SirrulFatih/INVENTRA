@@ -56,7 +56,7 @@ export function TransactionForm({ items, submitting, onSubmit }: TransactionForm
           <option value={0}>Pilih item...</option>
           {sortedItems.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.name} (Stock: {item.stock})
+              {item.name} (Stock: {item.stock} | Reserved: {item.reservedStock} | Available: {item.availableStock})
             </option>
           ))}
         </select>

@@ -186,6 +186,8 @@ export default function ItemsPage() {
                     <th>ID</th>
                     <th>Name</th>
                     <th>Stock</th>
+                    <th>Reserved</th>
+                    <th>Available</th>
                     <th>Description</th>
                     <th>Updated</th>
                     <th>Actions</th>
@@ -197,6 +199,8 @@ export default function ItemsPage() {
                       <td>#{item.id}</td>
                       <td className="font-semibold text-slate-800">{item.name}</td>
                       <td>{item.stock}</td>
+                      <td>{item.reservedStock}</td>
+                      <td>{item.availableStock}</td>
                       <td>{item.description || "-"}</td>
                       <td>{formatDateTime(item.updatedAt)}</td>
                       <td>
