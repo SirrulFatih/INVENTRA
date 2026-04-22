@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Pagination } from "@/components/common/pagination";
@@ -40,8 +39,12 @@ export default function TransactionsPage() {
     user?.permissions?.includes("read_transactions") || user?.permissions?.includes("manage_transactions")
   );
   const canReadItems = Boolean(user?.permissions?.includes("read_items") || user?.permissions?.includes("manage_items"));
-  const canManageTransactions = Boolean(user?.permissions?.includes("manage_transactions"));
-  const canApproveTransactions = Boolean(user?.permissions?.includes("approve_transactions"));
+  const canCreateTransactions = Boolean(
+    user?.permissions?.includes("create_transaction") || user?.permissions?.includes("manage_transactions")
+  );
+  const canApproveTransactions = Boolean(
+    user?.permissions?.includes("approve_transaction") || user?.permissions?.includes("approve_transactions")
+  );
 
   const [items, setItems] = useState<Item[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
@@ -59,7 +62,6 @@ export default function TransactionsPage() {
   const [loadingItems, setLoadingItems] = useState(true);
   const [creating, setCreating] = useState(false);
   const [actioningTransactionId, setActioningTransactionId] = useState<number | null>(null);
-  const [actioningType, setActioningType] = useState<ApprovalAction | null>(null);
   const [approvalConfirmation, setApprovalConfirmation] = useState<ApprovalConfirmationState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -145,6 +147,15 @@ export default function TransactionsPage() {
     type: TransactionType;
     quantity: number;
   }) => {
+    if (!canCreateTransactions) {
+      setError("You do not have permission to create transactions");
+      return;
+    }
+
+    if (creating) {
+      return;
+    }
+
     setCreating(true);
     setError(null);
     setNotice(null);
@@ -175,8 +186,11 @@ export default function TransactionsPage() {
   };
 
   const handleApprovalAction = async (transactionId: number, action: ApprovalAction) => {
+    if (!canApproveTransactions || actioningTransactionId !== null) {
+      return;
+    }
+
     setActioningTransactionId(transactionId);
-    setActioningType(action);
     setError(null);
     setNotice(null);
 
@@ -194,11 +208,14 @@ export default function TransactionsPage() {
       setError(requestError instanceof Error ? requestError.message : "Gagal memproses approval transaksi.");
     } finally {
       setActioningTransactionId(null);
-      setActioningType(null);
     }
   };
 
   const requestApprovalAction = (transactionId: number, action: ApprovalAction) => {
+    if (!canApproveTransactions || actioningTransactionId !== null) {
+      return;
+    }
+
     setApprovalConfirmation({ transactionId, action });
   };
 
@@ -228,14 +245,16 @@ export default function TransactionsPage() {
         <p className="mt-1 text-sm text-slate-500">Catat transaksi IN dan OUT untuk menjaga akurasi stok harian.</p>
       </div>
 
-      {canManageTransactions ? (
-        loadingItems ? (
-          <LoadingState label="Memuat data item untuk transaksi..." />
-        ) : (
-          <TransactionForm items={items} submitting={creating} onSubmit={handleCreateTransaction} />
-        )
+      {loadingItems ? (
+        <LoadingState label="Memuat data item untuk transaksi..." />
       ) : (
-        <div className="card-surface px-4 py-3 text-sm text-slate-600">Anda memiliki akses baca transaksi. Aksi perubahan data dinonaktifkan.</div>
+        <TransactionForm
+          items={items}
+          submitting={creating}
+          disabled={!canCreateTransactions}
+          disabledMessage={!canCreateTransactions ? "You do not have permission to create transactions" : undefined}
+          onSubmit={handleCreateTransaction}
+        />
       )}
 
       <div className="card-surface p-5">
@@ -327,7 +346,11 @@ export default function TransactionsPage() {
 
       {!loadingList && !error ? (
         transactions.length === 0 ? (
-          <EmptyState title="Transaksi belum tersedia" description="Buat transaksi pertama untuk mulai melacak arus stok." />
+          <div className="card-surface p-10 text-center">
+            <p className="text-3xl">📦</p>
+            <h3 className="font-display mt-2 text-lg font-semibold text-slate-800">No transactions yet</h3>
+            <p className="mt-2 text-sm text-slate-500">Start by creating your first transaction</p>
+          </div>
         ) : (
           <div className="card-surface p-4">
             <div className="table-shell">
@@ -381,24 +404,24 @@ export default function TransactionsPage() {
                             <button
                               type="button"
                               onClick={() => requestApprovalAction(transaction.id, "approve")}
-                              disabled={actioningTransactionId === transaction.id}
+                              disabled={actioningTransactionId !== null}
                               className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {actioningTransactionId === transaction.id && actioningType === "approve" ? "Approving..." : "Approve"}
+                              {actioningTransactionId === transaction.id ? "Processing..." : "Approve"}
                             </button>
                             <button
                               type="button"
                               onClick={() => requestApprovalAction(transaction.id, "reject")}
-                              disabled={actioningTransactionId === transaction.id}
+                              disabled={actioningTransactionId !== null}
                               className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {actioningTransactionId === transaction.id && actioningType === "reject" ? "Rejecting..." : "Reject"}
+                              {actioningTransactionId === transaction.id ? "Processing..." : "Reject"}
                             </button>
                           </div>
-                        ) : transaction.status === "PENDING" ? (
-                          <span className="text-xs text-slate-400">No permission</span>
                         ) : (
-                          <span className="text-xs text-slate-400">{STATUS_LABELS[transaction.status]}</span>
+                          <span className="text-xs text-slate-400">
+                            {transaction.status === "PENDING" ? "-" : STATUS_LABELS[transaction.status]}
+                          </span>
                         )}
                       </td>
                     </tr>
