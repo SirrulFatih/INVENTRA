@@ -118,7 +118,7 @@ export function TransactionForm({ items, submitting, disabled = false, disabledM
   };
 
   return (
-    <form className="card-surface grid gap-3 p-4 md:grid-cols-6" onSubmit={handleSubmit}>
+    <form className="card-surface grid gap-3 p-4 md:grid-cols-6 md:items-start" onSubmit={handleSubmit}>
       <label className="text-sm font-medium text-slate-700 md:col-span-2">
         Item
         <select
@@ -174,14 +174,19 @@ export function TransactionForm({ items, submitting, disabled = false, disabledM
         {helperMessage ? <p className="mt-2 text-xs text-slate-500">{helperMessage}</p> : null}
       </label>
 
-      <div className="flex items-end md:col-span-2">
-        <button
-          type="submit"
-          disabled={submitDisabled}
-          className="w-full rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? "Processing..." : "Buat Transaksi"}
-        </button>
+      <div className="md:col-span-2">
+        <p className="select-none text-sm font-medium text-transparent" aria-hidden="true">
+          Action
+        </p>
+        <div className="mt-1 flex items-start">
+          <button
+            type="submit"
+            disabled={submitDisabled}
+            className="w-full rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "Processing..." : "Buat Transaksi"}
+          </button>
+        </div>
       </div>
 
       {disabled && disabledMessage ? <p className="text-xs font-medium text-amber-700 md:col-span-6">{disabledMessage}</p> : null}
