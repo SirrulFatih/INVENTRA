@@ -19,11 +19,32 @@ export const apiClient = axios.create({
   timeout: 15000
 });
 
+const setAuthorizationHeader = (token: string | null) => {
+  if (token) {
+    const headerValue = `Bearer ${token}`;
+    axios.defaults.headers.common.Authorization = headerValue;
+    apiClient.defaults.headers.common.Authorization = headerValue;
+    return;
+  }
+
+  delete axios.defaults.headers.common.Authorization;
+  delete apiClient.defaults.headers.common.Authorization;
+};
+
+if (typeof window !== "undefined") {
+  const persistedToken = localStorage.getItem("token") || getAuthToken();
+  setAuthorizationHeader(persistedToken);
+}
+
 apiClient.interceptors.request.use((config) => {
   const token = getAuthToken();
 
+  setAuthorizationHeader(token);
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
   }
 
   return config;
@@ -36,6 +57,7 @@ apiClient.interceptors.response.use(
     const isLoginRequest = String(error.config?.url ?? "").includes("/users/login");
 
     if (typeof window !== "undefined" && isUnauthorized && !isLoginRequest) {
+      setAuthorizationHeader(null);
       clearAuthSession();
 
       if (window.location.pathname !== "/login") {
